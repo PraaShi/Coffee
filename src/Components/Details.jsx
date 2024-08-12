@@ -7,18 +7,26 @@ import { LocationList, SpotList } from '../lib/Data';
 
 export default function Details() {
 
+    const isDisabled= ()=> {
+        let values = formik.values.location && (formik.values.spot || formik.values.pspot) && formik.values.date && formik.values.time;
+        // console.log( !values)
+        return !values
+    }
 
     const initialValues = {
-        location:'',
+        location:'--Select--',
         spot:'',
         pspot:'',
         date:null,
         time:null
     }
 
-    const onSubmit = (values) => {
-        console.log("formik submit ",values)
-    }
+    const [display, setdisplay] = useState(false)
+
+    // const onSubmit = (values) => {
+    //     console.log("formik submit ",values)
+    //     setdisplay(true)
+    // }
 
     // const validate = (values) => {
     //     let errors = {}
@@ -41,64 +49,63 @@ export default function Details() {
     // }
 
     const validationSchema = Yup.object({
-        location: Yup.string().required("Required"),
-        spot: Yup.string().required("Required"),
-        spot:Yup.string(),
+        location: Yup.string().notOneOf(['--Select--'],'Select a Valid Option').required("Required"),
+        spot: Yup.string(),
+        pspot:Yup.string(),
         date : Yup.date().required("Required")
                   .test('is future','date is invalid',value => {
                     return value && new Date(value) > new Date();
                   }),
         time : Yup.string().required("Required")
     })
+    .test(
+        'spot-or-pspot',
+        'Either Spot or Preferred Spot is required',
+        function (values) {
+            const { spot, pspot } = values;
+            return spot || pspot;
+        }
+    );
+
     const formik = useFormik({
         initialValues,
-        onSubmit,
+        // onSubmit,
+        onSubmit: (values) => {
+            console.log("Formik submit", values);
+            setdisplay(true);
+        },
         validationSchema
     })
 
+    
+    let pspoterror = formik.touched.pspot && formik.values.pspot === "" ? "Required" : " ";
+
     const location = useRef(null)
 
-    const [display, setdisplay] = useState(false)
-    
-    function handleonclick(e) {
-        e.preventDefault();
-        console.log(e)
 
-        const form = e.target;
-        const formData = new FormData(form);
-        
-        setinfo({
-            location : formData.get('location'),
-            spot : formData.get('spot'),
-            date : formData.get('date'),
-            time : formData.get('time')
-        })
-
-        setdisplay(true);
-    }
-
-    useEffect(() => {
-      location.current.focus()
-    }, [])
+    // useEffect(() => {
+    //   location.current.focus()
+    // }, [])
 
 
     // console.log("formik errors" , formik.errors)
-    // console.log("visited fields" , formik.touched)
+    console.log("visited fields" , formik.touched)
+
 
   return (
     <div className='main_div'>
         <form className='form' 
-        // onSubmit={handleonclick} 
-        onSubmit={formik.handleSubmit}
-        >
+        onSubmit={formik.handleSubmit}>
             <div>
                 <label >Location:</label>
                 <select ref={location} 
                 name='location' 
                 id='location' 
-                onChange={formik.handleChange} 
-                onBlur={formik.handleBlur}
-                value={formik.values.location}>
+                // onChange={formik.handleChange} 
+                // onBlur={formik.handleBlur}
+                // value={formik.values.location}
+                {...formik.getFieldProps('location')}>
+                    <option>--Select--</option>
                     <option>none</option>
                     <option>potheri</option>
                     <option>guduvanchery</option>
@@ -112,8 +119,6 @@ export default function Details() {
 
                 {formik.touched.location && formik.errors.location ? <div>{formik.errors.location}</div> : null}
             </div>
-
-            
                 {
                     LocationList.includes(formik.values.location) ?
                     <div>
@@ -122,9 +127,7 @@ export default function Details() {
                         id="spot" 
                         name="spot" 
                         list="branches" 
-                        onChange={formik.handleChange} 
-                        onBlur={formik.handleBlur}
-                        value={formik.values.spot}/>
+                        {...formik.getFieldProps('spot')}/>
                             <datalist id="branches">
                                 {
                                     SpotList[formik.values.location].map( val => (
@@ -134,14 +137,17 @@ export default function Details() {
                             </datalist>
 
                         {formik.touched.spot && formik.errors.spot ? <div>{formik.errors.spot}</div> : null}
-                    </div> : <div>
-                        <input placeholder='Type your prefered spot'
+                    </div> : ((formik.values.location != '--Select--')  && (<div>
+                        <label htmlFor='pspot'>Preferred Spot :</label>
+                        <input placeholder='Type your preferred spot'
                                name='pspot'
-                               onChange={formik.handleChange} 
-                               onBlur={formik.handleBlur}
-                               value={formik.values.pspot}> 
+                               id='pspot'
+                               {...formik.getFieldProps('pspot')}> 
                         </input>
-                    </div>
+                        {/* {formik.touched.pspot && formik.errors.pspot ? <div>{formik.errors.pspot}</div> : null} */}
+                        <div>{pspoterror}</div>
+                    </div>) 
+                    )
                 }
             
 
@@ -151,9 +157,6 @@ export default function Details() {
                 name='date' 
                 type='date' 
                 id='date' 
-                // onChange={formik.handleChange} 
-                // onBlur={formik.handleBlur} 
-                // value={formik.values.date}
                 {...formik.getFieldProps('date')}
                 ></input>
 
@@ -165,18 +168,16 @@ export default function Details() {
                 name='time'
                 type='time' 
                 id='time' 
-                onChange={formik.handleChange} 
-                onBlur={formik.handleBlur}
-                value={formik.values.time}>
+                {...formik.getFieldProps('time')}>
                 </input>
 
                 {formik.touched.time && formik.errors.time ? <div>{formik.errors.time}</div> : null}
             </div>
-            <button className="button" type='submit' >Submit</button>
+            <button className="button" type='submit' disabled={isDisabled()} >Submit</button>
         </form>
         <div>
         { display &&
-           ( <p>I will be waiting in the {info.location} on {datefun(info.date)} at {time(info.time)} sharp.!!</p>)
+           ( <p>I will be waiting in the {formik.values.location === 'none' ? formik.values.pspot : formik.values.location+'-'+formik.values.spot} on {datefun(formik.values.date)} at {time(formik.values.time)} sharp.!!</p>)
         }
         </div>
     </div>
